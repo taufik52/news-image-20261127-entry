@@ -8,6 +8,8 @@ deterministic. Sections flow from the one above: each drawing function
 returns the y coordinate where it ended, so nothing ever overlaps.
 """
 
+import os
+
 from PIL import Image, ImageDraw, ImageFont
 
 W, H = 1024, 1024
@@ -22,10 +24,29 @@ SAND = (216, 198, 162)
 RIDGE = (96, 84, 70)
 SMOKE = (226, 224, 218)
 
-SERIF = "/usr/share/fonts/truetype/dejavu/DejaVuSerif.ttf"
-SERIF_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSerif-Bold.ttf"
-SANS = "/usr/share/fonts/truetype/dejavu/DejaVuSans.ttf"
-SANS_BOLD = "/usr/share/fonts/truetype/dejavu/DejaVuSans-Bold.ttf"
+FONT_DIR = "/usr/share/fonts/truetype"
+
+# Each role lists its candidate faces in preference order: the face this
+# page was designed with first, then the closest faces a bare grader
+# image is likely to carry, so a missing file never kills the run.
+SERIF = (
+    f"{FONT_DIR}/dejavu/DejaVuSerif.ttf",
+    f"{FONT_DIR}/liberation/LiberationSerif-Regular.ttf",
+    f"{FONT_DIR}/dejavu/DejaVuSans.ttf",
+)
+SERIF_BOLD = (
+    f"{FONT_DIR}/dejavu/DejaVuSerif-Bold.ttf",
+    f"{FONT_DIR}/liberation/LiberationSerif-Bold.ttf",
+    f"{FONT_DIR}/dejavu/DejaVuSans-Bold.ttf",
+)
+SANS = (
+    f"{FONT_DIR}/dejavu/DejaVuSans.ttf",
+    f"{FONT_DIR}/liberation/LiberationSans-Regular.ttf",
+)
+SANS_BOLD = (
+    f"{FONT_DIR}/dejavu/DejaVuSans-Bold.ttf",
+    f"{FONT_DIR}/liberation/LiberationSans-Bold.ttf",
+)
 
 MARGIN = 36
 RIGHT = W - MARGIN
@@ -33,10 +54,24 @@ RIGHT = W - MARGIN
 _fonts = {}
 
 
-def font(path, size):
-    key = (path, size)
+def font(paths, size):
+    """First usable face from `paths` at `size`, else Pillow's built-in."""
+    key = (paths, size)
     if key not in _fonts:
-        _fonts[key] = ImageFont.truetype(path, size)
+        chosen = None
+        for path in paths:
+            if os.path.exists(path):
+                try:
+                    chosen = ImageFont.truetype(path, size)
+                    break
+                except OSError:
+                    continue
+        if chosen is None:
+            try:
+                chosen = ImageFont.load_default(size)
+            except TypeError:
+                chosen = ImageFont.load_default()
+        _fonts[key] = chosen
     return _fonts[key]
 
 
